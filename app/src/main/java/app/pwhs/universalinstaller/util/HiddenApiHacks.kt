@@ -12,18 +12,10 @@ import rikka.shizuku.ShizukuBinderWrapper
 import rikka.shizuku.SystemServiceHelper
 import timber.log.Timber
 
-/**
- * Utility to access hidden Android APIs for multi-user installation support.
- * Inspired by InstallerX-Revived.
- */
 object HiddenApiHacks {
 
     private fun addExemptions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            // Prefix match — keep trailing `;` off so e.g. `IPackageInstaller$Stub` is covered
-            // too. With `;` the prefix terminates at the outer class and nested Stubs throw
-            // NoSuchMethodError at runtime when calling asInterface (bug reported on
-            // PermissionPilot / various ROMs).
             HiddenApiBypass.addHiddenApiExemptions(
                 "Landroid/content/pm/IPackageManager",
                 "Landroid/content/pm/IPackageInstaller",
@@ -34,7 +26,6 @@ object HiddenApiHacks {
         }
     }
 
-    /** The system PackageInstaller, reached over Shizuku so calls run as shell. */
     private fun remotePackageInstaller(): IPackageInstaller {
         val packageBinder = SystemServiceHelper.getSystemService("package")
         val iPackageManager = IPackageManager.Stub.asInterface(ShizukuBinderWrapper(packageBinder))
@@ -43,26 +34,12 @@ object HiddenApiHacks {
         )
     }
 
-    /**
-     * Open an existing session with **every** call on it routed back through Shizuku.
-     *
-     * [PackageInstaller.openSession] cannot be used for this. It does `new Session(mInstaller
-     * .openSession(id))` — the open call goes through our Shizuku-wrapped binder, but the session
-     * binder it returns is used raw, so later calls (`openWrite` above all) are transacted from
-     * our own uid. The session belongs to shell, so system_server rejects them with
-     * "Session does not belong to uid <ours>" — issue #58.
-     *
-     * Ackpine's own privileged installer wraps the session binder for exactly this reason
-     * (`PackageInstallerProxy.openSession`), which is why its non-targeted Shizuku installs work.
-     */
     fun openWrappedSession(sessionId: Int): PackageInstaller.Session? {
         addExemptions()
         return try {
             val remoteSession = IPackageInstallerSession.Stub.asInterface(
                 ShizukuBinderWrapper(remotePackageInstaller().openSession(sessionId).asBinder())
             )
-            // Reflection rather than the stub's PackageInstallerHidden.SessionHidden: that relies
-            // on the `dev.rikka.tools.refine` bytecode rewriter, which this module doesn't apply.
             PackageInstaller.Session::class.java
                 .getDeclaredConstructor(IPackageInstallerSession::class.java)
                 .apply { isAccessible = true }
@@ -75,93 +52,94 @@ object HiddenApiHacks {
 
     fun createPackageInstallerForUser(context: Context, userId: Int, overrideInstallerPackageName: String? = null): PackageInstaller? {
         addExemptions()
-
         return try {
             val iPackageInstaller = remotePackageInstaller()
-
             val installerPackageName = overrideInstallerPackageName ?: if (rikka.shizuku.Shizuku.getUid() == 0) {
                 context.packageName
             } else {
                 "com.android.shell"
             }
-
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val constructor = PackageInstaller::class.java.getDeclaredConstructor(
-                    IPackageInstaller::class.java,
-                    String::class.java,
-                    String::class.java,
-                    Int::class.java
+                    IPackageInstaller::class.java, String::class.java, String::class.java, Int::class.java
                 )
                 constructor.isAccessible = true
                 constructor.newInstance(iPackageInstaller, installerPackageName, context.attributionTag, userId)
             } else {
                 val constructor = PackageInstaller::class.java.getDeclaredConstructor(
-                    IPackageInstaller::class.java,
-                    String::class.java,
-                    Int::class.java
+                    IPackageInstaller::class.java, String::class.java, Int::class.java
                 )
                 constructor.isAccessible = true
                 constructor.newInstance(iPackageInstaller, installerPackageName, userId)
             }
         } catch (t: Throwable) {
-            // Catch Throwable, not Exception — Android throws NoSuchMethodError (a subclass of
-            // Error, not Exception) when hidden-API enforcement blocks a method, and silently
-            // returning null on Error swallowed every diagnostic for issue #46-style reports.
             Timber.e(t, "createPackageInstallerForUser failed (userId=$userId)")
             null
         }
     }
 
     /**
-     * Toggles the enabled state of a package using Shizuku.
-     * Uses reflection to handle different IPackageManager.setApplicationEnabledSetting signatures.
+     * SessionParams com as flags privilegiadas que uma sessão dona do shell precisa pra
+     * substituir um pacote já existente — incluindo apps de sistema. Sem isso, o commit
+     * falha com INSTALL_FAILED_ALREADY_EXISTS assim que o pacote alvo já existe.
+     * Baseado na abordagem do vvb2060/PackageInstaller (createSessionParams).
      */
+    fun createPrivilegedSessionParams(allowDowngrade: Boolean = false): PackageInstaller.SessionParams {
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+        try {
+            val field = PackageInstaller.SessionParams::class.java.getDeclaredField("installFlags")
+            field.isAccessible = true
+            var flags = field.getInt(params)
+
+            val INSTALL_REPLACE_EXISTING = 0x00000002
+            val INSTALL_ALLOW_TEST = 0x00000004
+            val INSTALL_REQUEST_DOWNGRADE = 0x00000080
+            val INSTALL_FULL_APP = 0x00004000
+            val INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK = 0x00400000
+            val INSTALL_REQUEST_UPDATE_OWNERSHIP = 0x00800000
+
+            flags = flags or INSTALL_REPLACE_EXISTING or INSTALL_ALLOW_TEST or INSTALL_FULL_APP
+            if (allowDowngrade) flags = flags or INSTALL_REQUEST_DOWNGRADE
+            if (Build.VERSION.SDK_INT >= 34) {
+                flags = flags or INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK or INSTALL_REQUEST_UPDATE_OWNERSHIP
+            }
+            field.setInt(params, flags)
+        } catch (t: Throwable) {
+            Timber.e(t, "Failed to set privileged installFlags — falling back to default session params")
+        }
+        return params
+    }
+
+    fun currentUserId(): Int = android.os.Process.myUid() / 100000
+
     fun setApplicationEnabledSetting(packageName: String, newState: Int, flags: Int) {
         try {
             val packageBinder = SystemServiceHelper.getSystemService("package")
             val iPackageManager = IPackageManager.Stub.asInterface(ShizukuBinderWrapper(packageBinder))
-            
-            // Try 5-param version (Android 10+)
             try {
                 val method = iPackageManager.javaClass.getMethod(
                     "setApplicationEnabledSetting",
-                    String::class.java,
-                    Int::class.java,
-                    Int::class.java,
-                    Int::class.java,
-                    String::class.java
+                    String::class.java, Int::class.java, Int::class.java, Int::class.java, String::class.java
                 )
                 method.invoke(iPackageManager, packageName, newState, flags, 0, "com.android.shell")
                 return
             } catch (e: NoSuchMethodException) {
-                // Try 4-param version (Older Android)
                 val method = iPackageManager.javaClass.getMethod(
                     "setApplicationEnabledSetting",
-                    String::class.java,
-                    Int::class.java,
-                    Int::class.java,
-                    Int::class.java
+                    String::class.java, Int::class.java, Int::class.java, Int::class.java
                 )
                 method.invoke(iPackageManager, packageName, newState, flags, 0)
             }
         } catch (e: Exception) {
             try {
                 val newProcessMethod = rikka.shizuku.Shizuku::class.java.getMethod(
-                    "newProcess",
-                    Array<String>::class.java,
-                    Array<String>::class.java,
-                    String::class.java
+                    "newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java
                 )
                 val process = newProcessMethod.invoke(
-                    null,
-                    arrayOf("pm", if (newState <= 1) "enable" else "disable-user", packageName),
-                    null,
-                    null
+                    null, arrayOf("pm", if (newState <= 1) "enable" else "disable-user", packageName), null, null
                 ) as Process
                 process.waitFor()
-            } catch (ex: Exception) {
-                // Ignore
-            }
+            } catch (ex: Exception) { }
         }
     }
 }
