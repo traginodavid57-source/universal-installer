@@ -9,10 +9,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
-/**
- * A manual installer that targets a specific user ID using hidden APIs.
- * Used when Ackpine doesn't support the target user.
- */
 object ManualTargetedInstaller {
 
     suspend fun install(
@@ -20,21 +16,16 @@ object ManualTargetedInstaller {
         uris: List<Uri>,
         userId: Int,
         overrideInstallerPackageName: String? = null,
+        allowDowngrade: Boolean = true,
         onProgress: (Float) -> Unit = {}
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val targetedInstaller = HiddenApiHacks.createPackageInstallerForUser(context, userId, overrideInstallerPackageName)
                 ?: throw RuntimeException("Failed to get targeted PackageInstaller")
 
-            val params = PackageInstaller.SessionParams(
-                PackageInstaller.SessionParams.MODE_FULL_INSTALL
-            )
-            
+            val params = HiddenApiHacks.createPrivilegedSessionParams(allowDowngrade = allowDowngrade)
             val sessionId = targetedInstaller.createSession(params)
             try {
-                // Not targetedInstaller.openSession(): that hands back a raw session binder and
-                // openWrite below would then run as our own uid against a shell-owned session,
-                // which is the "Session does not belong to uid" failure in issue #58.
                 val opened = HiddenApiHacks.openWrappedSession(sessionId)
                     ?: throw RuntimeException("Failed to open install session $sessionId")
                 opened.use { session ->
@@ -53,28 +44,18 @@ object ManualTargetedInstaller {
                     }
                 }
 
-                // Commit the session using Shizuku shell.
-                // This avoids "Session does not belong to uid" on Android 11,
-                // which happens when the app (UID 10xxx) tries to supply a PendingIntent
-                // to a session owned by shell (UID 2000).
                 val newProcessMethod = rikka.shizuku.Shizuku::class.java.getDeclaredMethod(
-                    "newProcess",
-                    Array<String>::class.java,
-                    Array<String>::class.java,
-                    String::class.java
+                    "newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java
                 ).apply { isAccessible = true }
-                
+
                 val process = newProcessMethod.invoke(
-                    null,
-                    arrayOf("pm", "install-commit", sessionId.toString()),
-                    null,
-                    null
+                    null, arrayOf("pm", "install-commit", sessionId.toString()), null, null
                 ) as Process
                 process.waitFor()
-                
+
                 val output = process.inputStream.bufferedReader().readText()
                 val error = process.errorStream.bufferedReader().readText()
-                
+
                 if (output.contains("Success", ignoreCase = true)) {
                     return@withContext Result.success(Unit)
                 } else {
