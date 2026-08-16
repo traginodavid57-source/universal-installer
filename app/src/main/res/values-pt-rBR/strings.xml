@@ -476,6 +476,12 @@
     <string name="onboarding_page3_desc">Para instalar pacotes, o app precisa de permissão para instalar de fontes desconhecidas. Toque no botão abaixo para concedê-la.</string>
     <string name="setting_section_sync">Sincronizar e Compartilhar</string>
     <string name="qs_tile_sync_label">Sincronizar e Compartilhar</string>
+    <string name="theme_custom_gradient_title">Degradê personalizado</string>
+    <string name="theme_custom_gradient_subtitle">Crie seu próprio degradê de duas cores para o tema do app.</string>
+    <string name="theme_gradient_start">Cor inicial</string>
+    <string name="theme_gradient_end">Cor final</string>
+    <string name="theme_liquid_glass_title">Liquid Glass</string>
+    <string name="theme_liquid_glass_subtitle">Usa painéis translúcidos de vidro, principalmente na barra de navegação.</string>
     <string name="theme_screen_title">Tema do App</string>
     <string name="theme_mode_title">Modo de Tema</string>
     <string name="theme_mode_system">Seguir o Sistema</string>
