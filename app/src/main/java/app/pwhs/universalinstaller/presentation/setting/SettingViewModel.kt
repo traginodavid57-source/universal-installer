@@ -16,6 +16,9 @@ import app.pwhs.core.data.local.SharedPrefsKeys
 import androidx.lifecycle.ViewModel
 import app.pwhs.core.domain.ThemeMode
 import app.pwhs.core.domain.AppThemePreset
+import app.pwhs.universalinstaller.ui.theme.CustomGradientTheme
+import app.pwhs.universalinstaller.ui.theme.parseThemeColor
+import app.pwhs.universalinstaller.ui.theme.toPreferenceHex
 
 
 import androidx.lifecycle.viewModelScope
@@ -52,7 +55,9 @@ data class SettingThemeState(
     val mode: ThemeMode = ThemeMode.System,
     val dynamicColor: Boolean = false,
     val amoledMode: Boolean = false,
-    val themePreset: AppThemePreset = AppThemePreset.Orange
+    val themePreset: AppThemePreset = AppThemePreset.Orange,
+    val customGradientTheme: CustomGradientTheme = CustomGradientTheme(),
+    val liquidGlassEnabled: Boolean = false
 )
 
 object PreferencesKeys {
@@ -60,6 +65,10 @@ object PreferencesKeys {
     val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
     val AMOLED_MODE = booleanPreferencesKey("amoled_mode")
     val THEME_PRESET = stringPreferencesKey("theme_preset")
+    val CUSTOM_THEME_ENABLED = booleanPreferencesKey("custom_theme_enabled")
+    val CUSTOM_THEME_START_COLOR = stringPreferencesKey("custom_theme_start_color")
+    val CUSTOM_THEME_END_COLOR = stringPreferencesKey("custom_theme_end_color")
+    val LIQUID_GLASS_ENABLED = booleanPreferencesKey("liquid_glass_enabled")
     val USE_SHIZUKU = booleanPreferencesKey("use_shizuku")
     val USE_ROOT = booleanPreferencesKey("use_root")
     val INSTALL_USER_ID = intPreferencesKey("install_user_id")
@@ -283,6 +292,8 @@ data class SettingUiState(
     val dynamicColor: Boolean = false,
     val amoledMode: Boolean = false,
     val themePreset: AppThemePreset = AppThemePreset.Orange,
+    val customGradientTheme: CustomGradientTheme = CustomGradientTheme(),
+    val liquidGlassEnabled: Boolean = false,
     val useShizuku: Boolean = false,
     val useRoot: Boolean = false,
     val virusTotalApiKey: String = "",
@@ -424,6 +435,27 @@ class SettingViewModel(
     fun setThemePreset(preset: AppThemePreset) {
         viewModelScope.launch {
             dataStore.edit { prefs -> prefs[PreferencesKeys.THEME_PRESET] = preset.name }
+        }
+    }
+
+    fun setCustomThemeEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { prefs -> prefs[PreferencesKeys.CUSTOM_THEME_ENABLED] = enabled }
+        }
+    }
+
+    fun setCustomGradientTheme(theme: CustomGradientTheme) {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[PreferencesKeys.CUSTOM_THEME_START_COLOR] = theme.startColor.toPreferenceHex()
+                prefs[PreferencesKeys.CUSTOM_THEME_END_COLOR] = theme.endColor.toPreferenceHex()
+            }
+        }
+    }
+
+    fun setLiquidGlassEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { prefs -> prefs[PreferencesKeys.LIQUID_GLASS_ENABLED] = enabled }
         }
     }
 
@@ -997,7 +1029,18 @@ class SettingViewModel(
             val amoledMode = prefs[PreferencesKeys.AMOLED_MODE] ?: false
             val presetName = prefs[PreferencesKeys.THEME_PRESET] ?: AppThemePreset.Orange.name
             val preset = AppThemePreset.entries.find { it.name == presetName } ?: AppThemePreset.Orange
-            SettingThemeState(mode, dynamicColor, amoledMode, preset)
+            SettingThemeState(
+                mode = mode,
+                dynamicColor = dynamicColor,
+                amoledMode = amoledMode,
+                themePreset = preset,
+                customGradientTheme = CustomGradientTheme(
+                    enabled = prefs[PreferencesKeys.CUSTOM_THEME_ENABLED] ?: false,
+                    startColor = parseThemeColor(prefs[PreferencesKeys.CUSTOM_THEME_START_COLOR] ?: "#FFEA580C", androidx.compose.ui.graphics.Color(0xFFEA580C)),
+                    endColor = parseThemeColor(prefs[PreferencesKeys.CUSTOM_THEME_END_COLOR] ?: "#FF3B82F6", androidx.compose.ui.graphics.Color(0xFF3B82F6)),
+                ),
+                liquidGlassEnabled = prefs[PreferencesKeys.LIQUID_GLASS_ENABLED] ?: false,
+            )
         },
         dataStore.data.map { it[PreferencesKeys.USE_SHIZUKU] ?: false },
         dataStore.data.map { it[PreferencesKeys.VIRUSTOTAL_API_KEY] ?: "" },
@@ -1109,6 +1152,8 @@ class SettingViewModel(
             dynamicColor = themeState.dynamicColor,
             amoledMode = themeState.amoledMode,
             themePreset = themeState.themePreset,
+            customGradientTheme = themeState.customGradientTheme,
+            liquidGlassEnabled = themeState.liquidGlassEnabled,
             // Reflect the raw preference so the switch flips immediately when toggled.
             // Functional gating (do we actually invoke the Shizuku backend?) is enforced
             // separately at install time via shizukuAvailable / BackendSelfHeal.

@@ -18,7 +18,9 @@ import app.pwhs.core.domain.ThemeMode
 import app.pwhs.core.data.local.dataStore
 import app.pwhs.core.data.local.SharedPrefsKeys
 import app.pwhs.core.domain.AppThemePreset
+import app.pwhs.universalinstaller.ui.theme.CustomGradientTheme
 import app.pwhs.universalinstaller.ui.theme.UniversalInstallerTheme
+import app.pwhs.universalinstaller.ui.theme.parseThemeColor
 import app.pwhs.universalinstaller.util.LocaleHelper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -30,7 +32,9 @@ abstract class BaseActivity : FragmentActivity() {
         val mode: ThemeMode,
         val dynamicColor: Boolean,
         val amoledMode: Boolean,
-        val themePreset: AppThemePreset
+        val themePreset: AppThemePreset,
+        val customGradientTheme: CustomGradientTheme,
+        val liquidGlassEnabled: Boolean
     )
 
     override fun attachBaseContext(newBase: Context) {
@@ -67,7 +71,18 @@ abstract class BaseActivity : FragmentActivity() {
                     val amoledMode = prefs[booleanPreferencesKey("amoled_mode")] ?: false
                     val presetName = prefs[stringPreferencesKey("theme_preset")] ?: AppThemePreset.Orange.name
                     val themePreset = AppThemePreset.entries.find { it.name == presetName } ?: AppThemePreset.Orange
-                    AppThemeState(mode, dynamicColor, amoledMode, themePreset)
+                    AppThemeState(
+                        mode = mode,
+                        dynamicColor = dynamicColor,
+                        amoledMode = amoledMode,
+                        themePreset = themePreset,
+                        customGradientTheme = CustomGradientTheme(
+                            enabled = prefs[booleanPreferencesKey("custom_theme_enabled")] ?: false,
+                            startColor = parseThemeColor(prefs[stringPreferencesKey("custom_theme_start_color")] ?: "#FFEA580C", androidx.compose.ui.graphics.Color(0xFFEA580C)),
+                            endColor = parseThemeColor(prefs[stringPreferencesKey("custom_theme_end_color")] ?: "#FF3B82F6", androidx.compose.ui.graphics.Color(0xFF3B82F6)),
+                        ),
+                        liquidGlassEnabled = prefs[booleanPreferencesKey("liquid_glass_enabled")] ?: false,
+                    )
                 }
             }
             
@@ -79,7 +94,18 @@ abstract class BaseActivity : FragmentActivity() {
                     val amoledMode = prefs[booleanPreferencesKey("amoled_mode")] ?: false
                     val presetName = prefs[stringPreferencesKey("theme_preset")] ?: AppThemePreset.Orange.name
                     val themePreset = AppThemePreset.entries.find { it.name == presetName } ?: AppThemePreset.Orange
-                    AppThemeState(mode, dynamicColor, amoledMode, themePreset)
+                    AppThemeState(
+                        mode = mode,
+                        dynamicColor = dynamicColor,
+                        amoledMode = amoledMode,
+                        themePreset = themePreset,
+                        customGradientTheme = CustomGradientTheme(
+                            enabled = prefs[booleanPreferencesKey("custom_theme_enabled")] ?: false,
+                            startColor = parseThemeColor(prefs[stringPreferencesKey("custom_theme_start_color")] ?: "#FFEA580C", androidx.compose.ui.graphics.Color(0xFFEA580C)),
+                            endColor = parseThemeColor(prefs[stringPreferencesKey("custom_theme_end_color")] ?: "#FF3B82F6", androidx.compose.ui.graphics.Color(0xFF3B82F6)),
+                        ),
+                        liquidGlassEnabled = prefs[booleanPreferencesKey("liquid_glass_enabled")] ?: false,
+                    )
                 }
             }
             val themeState by themeStateFlow.collectAsState(initial = initialState)
@@ -116,7 +142,9 @@ abstract class BaseActivity : FragmentActivity() {
                 darkTheme = darkTheme,
                 dynamicColor = themeState.dynamicColor,
                 amoledMode = themeState.amoledMode,
-                themePreset = themeState.themePreset
+                themePreset = themeState.themePreset,
+                customGradientTheme = themeState.customGradientTheme,
+                liquidGlassEnabled = themeState.liquidGlassEnabled
             ) {
                 content()
             }
