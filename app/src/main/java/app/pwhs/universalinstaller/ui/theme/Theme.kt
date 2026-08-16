@@ -171,6 +171,33 @@ private fun getPresetColorScheme(darkTheme: Boolean, preset: AppThemePreset): Co
     }
 }
 
+
+private fun getCustomGradientColorScheme(
+    darkTheme: Boolean,
+    customTheme: CustomGradientTheme
+): ColorScheme {
+    val base = getPresetColorScheme(darkTheme, AppThemePreset.Orange)
+    val primary = customTheme.startColor
+    val secondary = customTheme.endColor
+    return base.copy(
+        primary = primary,
+        primaryContainer = primary.copy(alpha = if (darkTheme) 0.34f else 0.16f),
+        onPrimaryContainer = if (darkTheme) Color.White else primary,
+        secondary = secondary,
+        secondaryContainer = secondary.copy(alpha = if (darkTheme) 0.32f else 0.14f),
+        tertiary = lerp(primary, secondary, 0.5f),
+    )
+}
+
+private fun lerp(start: Color, stop: Color, fraction: Float): Color {
+    return Color(
+        red = start.red + (stop.red - start.red) * fraction,
+        green = start.green + (stop.green - start.green) * fraction,
+        blue = start.blue + (stop.blue - start.blue) * fraction,
+        alpha = start.alpha + (stop.alpha - start.alpha) * fraction,
+    )
+}
+
 // M3 Expressive shapes: generous corner radii
 val ExpressiveShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
@@ -211,12 +238,17 @@ fun UniversalInstallerTheme(
     dynamicColor: Boolean = false,
     amoledMode: Boolean = false,
     themePreset: AppThemePreset = AppThemePreset.Orange,
+    customGradientTheme: CustomGradientTheme = CustomGradientTheme(),
+    liquidGlassEnabled: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        customGradientTheme.enabled -> {
+            getCustomGradientColorScheme(darkTheme, customGradientTheme)
         }
         else -> {
             getPresetColorScheme(darkTheme, themePreset)
@@ -248,6 +280,8 @@ fun UniversalInstallerTheme(
 
     CompositionLocalProvider(
         LocalExtendedColors provides extendedColors,
+        LocalCustomGradientTheme provides customGradientTheme,
+        LocalLiquidGlassStyle provides LiquidGlassStyle(liquidGlassEnabled),
         LocalDensity provides customDensity
     ) {
         MaterialTheme(

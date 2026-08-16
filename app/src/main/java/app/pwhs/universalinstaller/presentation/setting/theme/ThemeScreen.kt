@@ -23,6 +23,9 @@ import app.pwhs.universalinstaller.R
 import app.pwhs.universalinstaller.presentation.setting.SettingViewModel
 import app.pwhs.core.domain.ThemeMode
 import app.pwhs.core.domain.AppThemePreset
+import app.pwhs.universalinstaller.ui.theme.CustomGradientTheme
+import app.pwhs.universalinstaller.ui.theme.parseThemeColor
+import app.pwhs.universalinstaller.ui.theme.toPreferenceHex
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
@@ -30,6 +33,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.TextFieldValue
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -46,10 +53,15 @@ fun ThemeScreen(
         dynamicColor = uiState.dynamicColor,
         amoledMode = uiState.amoledMode,
         themePreset = uiState.themePreset,
+        customGradientTheme = uiState.customGradientTheme,
+        liquidGlassEnabled = uiState.liquidGlassEnabled,
         onThemeChanged = viewModel::setThemeMode,
         onDynamicColorChanged = viewModel::setDynamicColor,
         onAmoledModeChanged = viewModel::setAmoledMode,
         onThemePresetChanged = viewModel::setThemePreset,
+        onCustomThemeEnabledChanged = viewModel::setCustomThemeEnabled,
+        onCustomGradientThemeChanged = viewModel::setCustomGradientTheme,
+        onLiquidGlassEnabledChanged = viewModel::setLiquidGlassEnabled,
         onBack = {
             val a = context as? android.app.Activity
             a?.finish()
@@ -65,10 +77,15 @@ private fun ThemeUi(
     dynamicColor: Boolean = false,
     amoledMode: Boolean = false,
     themePreset: AppThemePreset = AppThemePreset.Orange,
+    customGradientTheme: CustomGradientTheme = CustomGradientTheme(),
+    liquidGlassEnabled: Boolean = false,
     onThemeChanged: (ThemeMode) -> Unit = {},
     onDynamicColorChanged: (Boolean) -> Unit = {},
     onAmoledModeChanged: (Boolean) -> Unit = {},
     onThemePresetChanged: (AppThemePreset) -> Unit = {},
+    onCustomThemeEnabledChanged: (Boolean) -> Unit = {},
+    onCustomGradientThemeChanged: (CustomGradientTheme) -> Unit = {},
+    onLiquidGlassEnabledChanged: (Boolean) -> Unit = {},
     onBack: () -> Unit = {}
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -211,6 +228,91 @@ private fun ThemeUi(
                         )
                     }
                 }
+            }
+
+            item {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            }
+
+            item {
+                var startHex by remember(customGradientTheme.startColor) {
+                    mutableStateOf(TextFieldValue(customGradientTheme.startColor.toPreferenceHex()))
+                }
+                var endHex by remember(customGradientTheme.endColor) {
+                    mutableStateOf(TextFieldValue(customGradientTheme.endColor.toPreferenceHex()))
+                }
+                Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.theme_custom_gradient_title)) },
+                        supportingContent = { Text(stringResource(R.string.theme_custom_gradient_subtitle)) },
+                        trailingContent = {
+                            Switch(
+                                checked = customGradientTheme.enabled,
+                                onCheckedChange = onCustomThemeEnabledChanged,
+                                enabled = !dynamicColor
+                            )
+                        },
+                        modifier = Modifier.clickable(enabled = !dynamicColor) {
+                            onCustomThemeEnabledChanged(!customGradientTheme.enabled)
+                        }
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = startHex,
+                            onValueChange = { value ->
+                                startHex = value
+                                onCustomGradientThemeChanged(
+                                    customGradientTheme.copy(
+                                        startColor = parseThemeColor(value.text, customGradientTheme.startColor)
+                                    )
+                                )
+                            },
+                            label = { Text(stringResource(R.string.theme_gradient_start)) },
+                            enabled = !dynamicColor,
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = endHex,
+                            onValueChange = { value ->
+                                endHex = value
+                                onCustomGradientThemeChanged(
+                                    customGradientTheme.copy(
+                                        endColor = parseThemeColor(value.text, customGradientTheme.endColor)
+                                    )
+                                )
+                            },
+                            label = { Text(stringResource(R.string.theme_gradient_end)) },
+                            enabled = !dynamicColor,
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .fillMaxWidth()
+                            .height(72.dp)
+                            .background(
+                                brush = androidx.compose.ui.graphics.Brush.linearGradient(customGradientTheme.colors),
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                    )
+                }
+            }
+
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.theme_liquid_glass_title)) },
+                    supportingContent = { Text(stringResource(R.string.theme_liquid_glass_subtitle)) },
+                    trailingContent = {
+                        Switch(
+                            checked = liquidGlassEnabled,
+                            onCheckedChange = onLiquidGlassEnabledChanged
+                        )
+                    },
+                    modifier = Modifier.clickable { onLiquidGlassEnabledChanged(!liquidGlassEnabled) }
+                )
             }
 
             item {

@@ -578,6 +578,12 @@
     <string name="onboarding_page3_desc">To install packages, the app needs permission to install from unknown sources. Tap the button below to grant it.</string>
     <string name="setting_section_sync">Sync &amp; Share</string>
     <string name="qs_tile_sync_label">Sync &amp; Share</string>
+    <string name="theme_custom_gradient_title">Custom gradient</string>
+    <string name="theme_custom_gradient_subtitle">Create your own two-color gradient for the app theme.</string>
+    <string name="theme_gradient_start">Start color</string>
+    <string name="theme_gradient_end">End color</string>
+    <string name="theme_liquid_glass_title">Liquid Glass</string>
+    <string name="theme_liquid_glass_subtitle">Use translucent glass panels, especially on the navigation bar.</string>
     <string name="theme_screen_title">App Theme</string>
     <string name="theme_mode_title">Theme Mode</string>
     <string name="theme_mode_system">Follow System</string>
