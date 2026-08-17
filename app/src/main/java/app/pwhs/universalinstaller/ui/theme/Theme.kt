@@ -239,7 +239,7 @@ fun UniversalInstallerTheme(
     amoledMode: Boolean = false,
     themePreset: AppThemePreset = AppThemePreset.Orange,
     customGradientTheme: CustomGradientTheme = CustomGradientTheme(),
-    liquidGlassEnabled: Boolean = false,
+    liquidGlassEnabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

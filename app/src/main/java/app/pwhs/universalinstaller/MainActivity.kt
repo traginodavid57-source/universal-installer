@@ -32,6 +32,7 @@ import app.pwhs.universalinstaller.presentation.splash.SplashActivity
 import app.pwhs.universalinstaller.ui.theme.UniversalInstallerTheme
 import app.pwhs.universalinstaller.util.LocaleHelper
 import androidx.datastore.preferences.core.stringPreferencesKey
+import app.pwhs.core.data.local.SharedPrefsKeys
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -75,6 +76,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val themeMode by themeModeFlow.collectAsState(initial = ThemeMode.System)
+            val liquidGlassFlow = remember {
+                dataStore.data.map { prefs -> prefs[SharedPrefsKeys.LIQUID_GLASS_ENABLED] ?: true }
+            }
+            val liquidGlassEnabled by liquidGlassFlow.collectAsState(initial = true)
 
             val darkTheme = when (themeMode) {
                 ThemeMode.System -> isSystemInDarkTheme()
@@ -108,7 +113,7 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(if (showOnboarding) AppRoute.Onboarding else AppRoute.Main)
             }
 
-            UniversalInstallerTheme(darkTheme = darkTheme) {
+            UniversalInstallerTheme(darkTheme = darkTheme, liquidGlassEnabled = liquidGlassEnabled) {
                 when (currentRoute) {
                     AppRoute.Onboarding -> OnboardingScreen(
                         onFinish = { currentRoute = AppRoute.Main },

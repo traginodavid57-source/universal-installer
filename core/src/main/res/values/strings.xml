@@ -9,6 +9,10 @@
     <string name="onboarding_page1_desc">Support for APK, APKS, XAPK, and APKM formats. Install split APKs with ease.</string>
     <string name="onboarding_page2_title">Manage Your Apps</string>
     <string name="onboarding_page2_desc">Browse installed apps, uninstall unwanted ones, and manage your device effortlessly.</string>
+    <string name="onboarding_liquid_glass_title">Liquid Glass by default</string>
+    <string name="onboarding_liquid_glass_desc">Use translucent glass panels and buttons from the first launch. It starts enabled, but you can turn it off now or later in Settings.</string>
+    <string name="onboarding_liquid_glass_switch">Use Liquid Glass</string>
+    <string name="onboarding_liquid_glass_switch_sub">Enabled by default. Turn it off if you prefer the classic Material look.</string>
     <string name="onboarding_page3_title">Allow Installation</string>
     <string name="onboarding_page3_desc">To install packages, the app needs permission to install from unknown sources. Tap the button below to grant it.</string>
     <string name="onboarding_virustotal_title">Scan before you install</string>

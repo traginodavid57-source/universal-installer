@@ -81,7 +81,7 @@ abstract class BaseActivity : FragmentActivity() {
                             startColor = parseThemeColor(prefs[stringPreferencesKey("custom_theme_start_color")] ?: "#FFEA580C", androidx.compose.ui.graphics.Color(0xFFEA580C)),
                             endColor = parseThemeColor(prefs[stringPreferencesKey("custom_theme_end_color")] ?: "#FF3B82F6", androidx.compose.ui.graphics.Color(0xFF3B82F6)),
                         ),
-                        liquidGlassEnabled = prefs[booleanPreferencesKey("liquid_glass_enabled")] ?: false,
+                        liquidGlassEnabled = prefs[SharedPrefsKeys.LIQUID_GLASS_ENABLED] ?: true,
                     )
                 }
             }
@@ -104,7 +104,7 @@ abstract class BaseActivity : FragmentActivity() {
                             startColor = parseThemeColor(prefs[stringPreferencesKey("custom_theme_start_color")] ?: "#FFEA580C", androidx.compose.ui.graphics.Color(0xFFEA580C)),
                             endColor = parseThemeColor(prefs[stringPreferencesKey("custom_theme_end_color")] ?: "#FF3B82F6", androidx.compose.ui.graphics.Color(0xFF3B82F6)),
                         ),
-                        liquidGlassEnabled = prefs[booleanPreferencesKey("liquid_glass_enabled")] ?: false,
+                        liquidGlassEnabled = prefs[SharedPrefsKeys.LIQUID_GLASS_ENABLED] ?: true,
                     )
                 }
             }

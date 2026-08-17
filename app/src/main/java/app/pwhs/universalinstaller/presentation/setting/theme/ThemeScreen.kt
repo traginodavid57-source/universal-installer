@@ -78,7 +78,7 @@ private fun ThemeUi(
     amoledMode: Boolean = false,
     themePreset: AppThemePreset = AppThemePreset.Orange,
     customGradientTheme: CustomGradientTheme = CustomGradientTheme(),
-    liquidGlassEnabled: Boolean = false,
+    liquidGlassEnabled: Boolean = true,
     onThemeChanged: (ThemeMode) -> Unit = {},
     onDynamicColorChanged: (Boolean) -> Unit = {},
     onAmoledModeChanged: (Boolean) -> Unit = {},

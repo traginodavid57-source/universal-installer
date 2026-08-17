@@ -39,4 +39,7 @@ object SharedPrefsKeys {
      * governs is in :app; both sides have to agree on the key name.
      */
     val ANALYTICS_ENABLED = booleanPreferencesKey("analytics_enabled")
+
+    /** Shared Liquid Glass toggle; absent means enabled for new installs/onboarding. */
+    val LIQUID_GLASS_ENABLED = booleanPreferencesKey("liquid_glass_enabled")
 }

@@ -57,7 +57,7 @@ data class SettingThemeState(
     val amoledMode: Boolean = false,
     val themePreset: AppThemePreset = AppThemePreset.Orange,
     val customGradientTheme: CustomGradientTheme = CustomGradientTheme(),
-    val liquidGlassEnabled: Boolean = false
+    val liquidGlassEnabled: Boolean = true
 )
 
 object PreferencesKeys {
@@ -293,7 +293,7 @@ data class SettingUiState(
     val amoledMode: Boolean = false,
     val themePreset: AppThemePreset = AppThemePreset.Orange,
     val customGradientTheme: CustomGradientTheme = CustomGradientTheme(),
-    val liquidGlassEnabled: Boolean = false,
+    val liquidGlassEnabled: Boolean = true,
     val useShizuku: Boolean = false,
     val useRoot: Boolean = false,
     val virusTotalApiKey: String = "",
@@ -1039,7 +1039,7 @@ class SettingViewModel(
                     startColor = parseThemeColor(prefs[PreferencesKeys.CUSTOM_THEME_START_COLOR] ?: "#FFEA580C", androidx.compose.ui.graphics.Color(0xFFEA580C)),
                     endColor = parseThemeColor(prefs[PreferencesKeys.CUSTOM_THEME_END_COLOR] ?: "#FF3B82F6", androidx.compose.ui.graphics.Color(0xFF3B82F6)),
                 ),
-                liquidGlassEnabled = prefs[PreferencesKeys.LIQUID_GLASS_ENABLED] ?: false,
+                liquidGlassEnabled = prefs[PreferencesKeys.LIQUID_GLASS_ENABLED] ?: true,
             )
         },
         dataStore.data.map { it[PreferencesKeys.USE_SHIZUKU] ?: false },

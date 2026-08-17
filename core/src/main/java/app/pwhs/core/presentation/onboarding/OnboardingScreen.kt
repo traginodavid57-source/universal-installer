@@ -8,6 +8,9 @@ import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -26,6 +29,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -40,6 +44,7 @@ import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -62,6 +67,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -98,6 +106,8 @@ private data class OnboardingPage(
     val virusTotalKeyField: Boolean = false,
     /** Renders the anonymous-reporting opt-out switch under the description. */
     val analyticsToggle: Boolean = false,
+    /** Renders the Liquid Glass default-on switch under the description. */
+    val liquidGlassToggle: Boolean = false,
     /** Optional secondary action rendered under the description (e.g. "Open Developer options"). */
     val actionLabel: String? = null,
     val actionIcon: ImageVector? = null,
@@ -187,6 +197,14 @@ fun OnboardingScreen(
                 )
             )
         }
+        add(
+            OnboardingPage(
+                icon = Icons.Rounded.Widgets,
+                title = stringResource(R.string.onboarding_liquid_glass_title),
+                description = stringResource(R.string.onboarding_liquid_glass_desc),
+                liquidGlassToggle = true,
+            )
+        )
         // Must stay last: PageContent keys the permission UI off `page == pages.lastIndex`.
         add(
             OnboardingPage(
@@ -204,9 +222,14 @@ fun OnboardingScreen(
     // Opted in unless the user says otherwise, which is also how an absent preference reads
     // everywhere else. Seeded from the store so replaying the tour shows the current answer.
     var analyticsEnabled by remember { mutableStateOf(true) }
+    var liquidGlassEnabled by remember { mutableStateOf(true) }
     LaunchedEffect(showAnalyticsConsent) {
         if (!showAnalyticsConsent) return@LaunchedEffect
         analyticsEnabled = context.dataStore.data.first()[SharedPrefsKeys.ANALYTICS_ENABLED] ?: true
+    }
+    LaunchedEffect(Unit) {
+        liquidGlassEnabled = context.dataStore.data.first()[SharedPrefsKeys.LIQUID_GLASS_ENABLED] ?: true
+        context.dataStore.edit { prefs -> prefs[SharedPrefsKeys.LIQUID_GLASS_ENABLED] = liquidGlassEnabled }
     }
 
     // The key the user pastes on the VirusTotal page. Seeded from whatever Settings already holds,
@@ -291,6 +314,15 @@ fun OnboardingScreen(
                         }
                     },
                     analyticsEnabled = analyticsEnabled,
+                    liquidGlassEnabled = liquidGlassEnabled,
+                    onLiquidGlassEnabledChange = { enabled ->
+                        liquidGlassEnabled = enabled
+                        scope.launch {
+                            context.dataStore.edit { prefs ->
+                                prefs[SharedPrefsKeys.LIQUID_GLASS_ENABLED] = enabled
+                            }
+                        }
+                    },
                     onAnalyticsEnabledChange = { enabled ->
                         analyticsEnabled = enabled
                         scope.launch {
@@ -349,7 +381,7 @@ fun OnboardingScreen(
 
                 // Next / Get Started button
                 if (pagerState.currentPage < pages.lastIndex) {
-                    FilledTonalButton(onClick = {
+                    OnboardingFilledTonalButton(liquidGlass = liquidGlassEnabled, onClick = {
                         scope.launch {
                             pagerState.animateScrollToPage(pagerState.currentPage + 1)
                         }
@@ -363,10 +395,11 @@ fun OnboardingScreen(
                         )
                     }
                 } else {
-                    Button(onClick = {
+                    OnboardingButton(liquidGlass = liquidGlassEnabled, onClick = {
                         scope.launch {
                             context.dataStore.edit {
                                 it[SharedPrefsKeys.ONBOARDING_COMPLETED] = true
+                                it[SharedPrefsKeys.LIQUID_GLASS_ENABLED] = liquidGlassEnabled
                             }
                             onFinish()
                         }
@@ -391,6 +424,8 @@ private fun PageContent(
     onVirusTotalKeyChange: (String) -> Unit = {},
     analyticsEnabled: Boolean = true,
     onAnalyticsEnabledChange: (Boolean) -> Unit = {},
+    liquidGlassEnabled: Boolean = true,
+    onLiquidGlassEnabledChange: (Boolean) -> Unit = {},
 ) {
     // Centered while it fits, scrollable once the keyboard takes half the screen away.
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -452,12 +487,20 @@ private fun PageContent(
                 )
             }
 
+            if (page.liquidGlassToggle) {
+                Spacer(Modifier.height(28.dp))
+                OnboardingLiquidGlassToggle(
+                    enabled = liquidGlassEnabled,
+                    onChange = onLiquidGlassEnabledChange,
+                )
+            }
+
             // The key block draws its own link, so the shared button would only duplicate it.
             if (!page.virusTotalKeyField) {
                 page.onAction?.let { action ->
                     val label = page.actionLabel ?: return@let
                     Spacer(Modifier.height(32.dp))
-                    OutlinedButton(onClick = action) {
+                    OnboardingOutlinedButton(liquidGlass = liquidGlassEnabled, onClick = action) {
                         page.actionIcon?.let { icon ->
                             Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
@@ -500,7 +543,7 @@ private fun PageContent(
                         )
                     }
                 } else {
-                    OutlinedButton(onClick = onRequestPermission) {
+                    OnboardingOutlinedButton(liquidGlass = liquidGlassEnabled, onClick = onRequestPermission) {
                         Icon(
                             Icons.Rounded.Security,
                             contentDescription = null,
@@ -631,6 +674,109 @@ private fun OnboardingAnalyticsToggle(
         }
     }
 }
+
+
+@Composable
+private fun OnboardingLiquidGlassToggle(
+    enabled: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = if (enabled) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (enabled) Modifier.liquidGlassBackground(MaterialTheme.shapes.large) else Modifier),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.onboarding_liquid_glass_switch),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (enabled) Color.White else MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.onboarding_liquid_glass_switch_sub),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (enabled) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(checked = enabled, onCheckedChange = onChange)
+        }
+    }
+}
+
+@Composable
+private fun OnboardingButton(
+    liquidGlass: Boolean,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.then(if (liquidGlass) Modifier.liquidGlassBackground(RoundedCornerShape(28.dp)) else Modifier),
+        colors = if (liquidGlass) ButtonDefaults.buttonColors(
+            containerColor = Color.Transparent,
+            contentColor = Color.White,
+        ) else ButtonDefaults.buttonColors(),
+        border = if (liquidGlass) BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)) else null,
+        content = content,
+    )
+}
+
+@Composable
+private fun OnboardingFilledTonalButton(
+    liquidGlass: Boolean,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = Modifier.then(if (liquidGlass) Modifier.liquidGlassBackground(RoundedCornerShape(28.dp)) else Modifier),
+        colors = if (liquidGlass) ButtonDefaults.filledTonalButtonColors(
+            containerColor = Color.Transparent,
+            contentColor = Color.White,
+        ) else ButtonDefaults.filledTonalButtonColors(),
+        border = if (liquidGlass) BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)) else null,
+        content = content,
+    )
+}
+
+@Composable
+private fun OnboardingOutlinedButton(
+    liquidGlass: Boolean,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.then(if (liquidGlass) Modifier.liquidGlassBackground(RoundedCornerShape(28.dp)) else Modifier),
+        colors = if (liquidGlass) ButtonDefaults.outlinedButtonColors(
+            containerColor = Color.Transparent,
+            contentColor = Color.White,
+        ) else ButtonDefaults.outlinedButtonColors(),
+        border = if (liquidGlass) BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)) else null,
+        content = content,
+    )
+}
+
+private fun Modifier.liquidGlassBackground(shape: androidx.compose.ui.graphics.Shape): Modifier = this
+    .clip(shape)
+    .background(
+        Brush.linearGradient(
+            listOf(
+                Color(0xFF080808).copy(alpha = 0.84f),
+                Color.White.copy(alpha = 0.18f),
+                Color(0xFF050505).copy(alpha = 0.78f),
+            )
+        )
+    )
+    .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
 
 /**
  * Normal vs Strict, offered during onboarding.
